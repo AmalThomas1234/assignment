@@ -81,6 +81,7 @@ hr.RampBreak--l {
 
 .RampInputSelect--root {
   width: 100%;
+  position: relative;
 }
 
 .RampInputSelect--input {
@@ -92,18 +93,30 @@ hr.RampBreak--l {
 
 .RampInputSelect--dropdown-container {
   display: none;
-  position: fixed;
+  position: absolute;
+  /* Ensure the dropdown is positioned relative to the container */
   width: 100%;
-  max-width: 700px;
   border: 1px solid var(--color-darker-shade);
   margin-top: 0.5rem;
   max-height: 16rem;
   overflow: auto;
   box-shadow: rgb(0 0 0 / 10%) 0px 0px 1px, rgb(0 0 0 / 13%) 0px 4px 8px;
+  background-color: var(--color-empty-shade);
+  /* Ensure background color */
+  z-index: 1000;
 }
 
 .RampInputSelect--dropdown-container-opened {
   display: block;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+@media (max-width: 576px) {
+  .RampInputSelect--dropdown-container-opened {
+    max-height: 70vh;
+  }
 }
 
 .RampInputSelect--dropdown-item {

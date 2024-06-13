@@ -1,5 +1,5 @@
 import Downshift from "downshift"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import classNames from "classnames"
 import { DropdownPosition, GetDropdownPositionFn, InputSelectOnChange, InputSelectProps } from "./types"
 
@@ -13,22 +13,53 @@ export function InputSelect<TItem>({
   loadingLabel,
 }: InputSelectProps<TItem>) {
   const [selectedValue, setSelectedValue] = useState<TItem | null>(defaultValue ?? null)
-  const [dropdownPosition, setDropdownPosition] = useState<DropdownPosition>({
-    top: 0,
-    left: 0,
-  })
+  const [dropdownPosition, setDropdownPosition] = useState<DropdownPosition>({ top: 0, left: 0 })
+  const inputRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const onChange = useCallback<InputSelectOnChange<TItem>>(
     (selectedItem) => {
       if (selectedItem === null) {
         return
       }
-
       consumerOnChange(selectedItem)
       setSelectedValue(selectedItem)
     },
     [consumerOnChange]
   )
+
+  const preventPageScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (dropdownRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = dropdownRef.current
+      if (
+        (scrollTop === 0 && e.deltaY < 0) ||
+        (scrollTop + clientHeight >= scrollHeight && e.deltaY > 0)
+      ) {
+        e.preventDefault()
+      }
+    }
+  }
+
+  const updateDropdownPosition = () => {
+    if (inputRef.current) {
+      const { top, left, height } = inputRef.current.getBoundingClientRect()
+      const { scrollY, scrollX } = window
+      setDropdownPosition({ top: scrollY + top + height, left: scrollX + left })
+    }
+  }
+
+  useEffect(() => {
+    window.addEventListener("scroll", updateDropdownPosition, true)
+    window.addEventListener("resize", updateDropdownPosition)
+    return () => {
+      window.removeEventListener("scroll", updateDropdownPosition, true)
+      window.removeEventListener("resize", updateDropdownPosition)
+    }
+  }, [])
+
+  useEffect(() => {
+    updateDropdownPosition()
+  }, [selectedValue, items])
 
   return (
     <Downshift<TItem>
@@ -51,7 +82,7 @@ export function InputSelect<TItem>({
         const parsedSelectedItem = selectedItem === null ? null : parseItem(selectedItem)
 
         return (
-          <div className="RampInputSelect--root">
+          <div className="RampInputSelect--root" ref={inputRef}>
             <label className="RampText--s RampText--hushed" {...getLabelProps()}>
               {label}
             </label>
@@ -59,7 +90,7 @@ export function InputSelect<TItem>({
             <div
               className="RampInputSelect--input"
               onClick={(event) => {
-                setDropdownPosition(getDropdownPosition(event.target))
+                updateDropdownPosition()
                 toggleProps.onClick(event)
               }}
             >
@@ -67,11 +98,13 @@ export function InputSelect<TItem>({
             </div>
 
             <div
+              ref={dropdownRef}
               className={classNames("RampInputSelect--dropdown-container", {
                 "RampInputSelect--dropdown-container-opened": isOpen,
               })}
               {...getMenuProps()}
               style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+              onWheel={preventPageScroll}
             >
               {renderItems()}
             </div>
@@ -119,13 +152,12 @@ export function InputSelect<TItem>({
 
 const getDropdownPosition: GetDropdownPositionFn = (target) => {
   if (target instanceof Element) {
-    const { top, left } = target.getBoundingClientRect()
-    const { scrollY } = window
+    const { top, left, height } = target.getBoundingClientRect()
+    const { scrollY, scrollX } = window
     return {
-      top: scrollY + top + 63,
-      left,
+      top: scrollY + top + height,
+      left: scrollX + left,
     }
   }
-
   return { top: 0, left: 0 }
 }
